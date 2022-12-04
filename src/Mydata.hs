@@ -18,8 +18,8 @@ data Ta = Kaz Int
         deriving (Eq, Show)
 
 data State = State Ply [Enm] deriving (Eq, Show)
-data Ply = Ply {pki :: Int, pac :: Int, pst :: Int} deriving (Eq, Show)
-data Enm = Enm {eki :: Int, eac :: Int, est :: Int} deriving (Eq, Show)
+data Ply = Ply {pki :: !Int, pac :: !Int, pst :: !Int} deriving (Eq, Show)
+data Enm = Enm {eki :: !Int, eac :: !Int, est :: !Int} deriving (Eq, Show)
 
 instance Eq Mana where
   (==) (Mana t1 _) (Mana t2 _) = t1==t2
@@ -42,7 +42,7 @@ manas = M.fromList [("hi",Kaz 1),("fu",Kaz 2),("mi",Kaz 3),("yo",Kaz 4),("yi",Ka
                    ,("mu",Kaz 6) ,("na",Kaz 7),("ya",Kaz 8),("ko",Kaz 9),("so",Kaz 10)
                    ,("hodama",Tam [("ho",1)]),("mizutama",Tam [("mi",1)])
                    ,("migi",Hou [("mg",5)]),("hidari",Hou [("hd",5)])
-                   ,("nageru",Dou ["Tam"] ["Hou"] [] [])]
+                   ,("nageru",Dou ["Tam"] ["Hou","Kaz"] [] [])]
 
 toMana :: String -> Maybe Mana
 toMana str = let ta = M.lookup str manas
