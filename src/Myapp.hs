@@ -4,7 +4,7 @@ import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
 import Data.IORef(newIORef, readIORef, writeIORef)
 import Control.Concurrent.Timer(repeatedTimer, stopTimer)
 import Control.Concurrent.Suspend(msDelay)
-import Mydata(Mana, toMana, state, (.>))
+import Mydata(State, Mana, toMana, state, (.>))
 
 appMain :: IO ()
 appMain = do
@@ -30,13 +30,17 @@ appMain = do
   appLoop
   stopTimer tm
 
-showS :: Mana -> String
+showS :: State -> String
 showS = show 
 
-exeCom :: String -> Mana -> Maybe Mana
+exeCom :: String -> State -> Maybe State 
 exeCom com s = let coms =  words com
                    mns = map toMana coms
-                in foldl (.>) (Just s) mns
+                   res = foldl (\acc mn -> case mn of Just m' -> acc .> m'; _ -> acc) [] mns
+                in if (res==[]) then Nothing else Just (makeState s res)
 
-doWithTime :: Mana -> Mana
+makeState :: State -> [Mana] -> State
+makeState st _ = st
+
+doWithTime :: State -> State 
 doWithTime = id
