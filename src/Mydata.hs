@@ -17,7 +17,7 @@ data Ta = Kaz Int
         | Dou [String] [String] [T] [T]
         deriving (Eq, Show)
 
-data State = State Ply [Enm] deriving (Eq, Show)
+data State = State Ply [Enm] [Mana] deriving (Eq, Show)
 data Ply = Ply {pki :: !Int, pac :: !Int, pst :: !Int} deriving (Eq, Show)
 data Enm = Enm {eki :: !Int, eac :: !Int, est :: !Int} deriving (Eq, Show)
 
@@ -49,7 +49,7 @@ toMana str = let ta = M.lookup str manas
               in (\t -> (Mana (T str t) youM)) <$> ta 
 
 state :: State 
-state = State player [enemy] 
+state = State player [enemy] [] 
 
 player :: Ply
 player = Ply{pki=50, pac=10, pst=10}
@@ -82,12 +82,12 @@ toConstr = head . words . show
 (.*.) ts t = t:ts
 
 makeDou :: T -> [T] -> [T]
-makeDou  _ [] = []
+makeDou  d [] = [d] 
 makeDou d@(T na (Dou ca cb t1 t2)) tal@(t3@(T nat ta):ts) 
   | elem cstr ca = let ca' = eraseFrom cstr ca
-                             in makeDou (T (na++"-"++nat) (Dou ca' cb (t3:t1) t2)) ts
+                    in makeDou (T (na++"-"++nat) (Dou ca' cb (t3:t1) t2)) ts
   | elem cstr cb = let cb' = eraseFrom cstr cb
-                             in makeDou (T (na++"-"++nat) (Dou ca cb' t1 (t3:t2))) ts
+                    in makeDou (T (na++"-"++nat) (Dou ca cb' t1 (t3:t2))) ts
   | otherwise = d:tal 
     where cstr = toConstr ta
 makeDou _ ts = ts

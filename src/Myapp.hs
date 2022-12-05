@@ -4,7 +4,7 @@ import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
 import Data.IORef(newIORef, readIORef, writeIORef)
 import Control.Concurrent.Timer(repeatedTimer, stopTimer)
 import Control.Concurrent.Suspend(msDelay)
-import Mydata(State, Mana, toMana, state, (.>))
+import Mydata(State(..), Mana, toMana, state, (.>))
 
 appMain :: IO ()
 appMain = do
@@ -40,7 +40,7 @@ exeCom com s = let coms =  words com
                 in if (res==[]) then Nothing else Just (makeState s res)
 
 makeState :: State -> [Mana] -> State
-makeState st _ = st
+makeState (State pl en _) mns2 = State pl en mns2 
 
 doWithTime :: State -> State 
 doWithTime = id
