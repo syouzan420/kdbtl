@@ -1,4 +1,4 @@
-module Mydata(State(..), Mana(..), Fun, toMana, applyMana, state, (.>)) where
+module Mydata(State(..), Mana(..), toMana, applyMana, state, (.>)) where
 
 import qualified Data.Map.Strict as M
 import Data.List (findIndex)
