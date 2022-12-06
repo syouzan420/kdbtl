@@ -40,7 +40,7 @@ exeCom com s = let coms =  words com
                 in if (res==[]) then Nothing else Just (makeState s res)
 
 makeState :: State -> [Mana] -> State
-makeState (State pl en _) mns2 = State pl en mns2 
+makeState st mns2 = st{mns=mns2}
 
 doWithTime :: State -> State 
 doWithTime = id
