@@ -1,4 +1,4 @@
-module Mydata(State(..), Mana(..), toMana, state, (.>)) where
+module Mydata(State(..), Mana(..), Fun, toMana, applyMana, state, (.>)) where
 
 import qualified Data.Map.Strict as M
 import Data.List (findIndex)
@@ -18,11 +18,25 @@ data Ta = Kaz Int
         | Dou [String] [String] [T] [T]
         deriving (Eq, Show)
 
-data State = State {pl :: !Ply, ens :: ![Enm], sw :: !Swi, mes :: !Mes, mns :: ![Mana]} deriving (Eq, Show)
+data State = State {pl  :: !Ply
+                   ,ens :: ![Enm]
+                   ,sw  :: !Swi
+                   ,mes :: !Mes
+                   ,fun :: ![Fun]
+                   ,mns :: ![Mana]
+                   } deriving (Eq, Show)
 data Ply = Ply {pki :: !Int, pac :: !Int, pst :: !Int} deriving (Eq, Show)
 data Enm = Enm {eki :: !Int, eac :: !Int, est :: !Int} deriving (Eq, Show)
 data Swi = Swi {itm :: !Bool} deriving (Eq, Show)
 data Mes = Mes {ms1 :: !String} deriving (Eq, Show)
+
+type Fun = State -> (State,Int)
+
+instance Eq Fun where
+  (==) f1 f2 = f1==f2
+
+instance Show Fun where
+  show _ = "FUNC"
 
 instance Eq Mana where
   (==) (Mana t1 _) (Mana t2 _) = t1==t2
@@ -60,8 +74,11 @@ toMana :: String -> Maybe Mana
 toMana str = let ta = M.lookup str manas
               in (\t -> (Mana (T str t) youM)) <$> ta 
 
+funcName :: M.Map String (Int -> [T] -> [T] -> Fun) 
+funcName = M.fromList [("nageru",nageru)]
+
 state :: State 
-state = State player [enemy] switch message [] 
+state = State player [enemy] switch message [] [] 
 
 player :: Ply
 player = Ply{pki=50, pac=10, pst=10}
@@ -110,12 +127,22 @@ makeDou :: T -> [T] -> [T]
 makeDou  d [] = [d] 
 makeDou d@(T na (Dou ca cb t1 t2)) tal@(t3@(T nat ta):ts) 
   | elem cstr ca = let ca' = eraseFrom cstr ca
-                    in makeDou (T (na++"-"++nat) (Dou ca' cb (t3:t1) t2)) ts
+                    in makeDou (T (na++" "++nat) (Dou ca' cb (t3:t1) t2)) ts
   | elem cstr cb = let cb' = eraseFrom cstr cb
-                    in makeDou (T (na++"-"++nat) (Dou ca cb' t1 (t3:t2))) ts
+                    in makeDou (T (na++" "++nat) (Dou ca cb' t1 (t3:t2))) ts
   | otherwise = d:tal 
     where cstr = toConstr ta
 makeDou _ ts = ts
+
+applyMana :: State -> Mana -> State
+applyMana st m@(Mana (T na (Dou _ _ ts1 ts2)) _) = 
+  let nam = head$words na
+      fnc = M.lookup nam funcName
+      sfn = fun st
+   in case fnc of
+        Nothing -> st{mns = mns st ++ [m]}
+        Just f  -> st{fun = sfn ++ [f 0 ts1 ts2], mns = mns st ++ [m]}
+applyMana st m = st{mns= mns st ++ [m]}
 
 eraseFrom :: Eq a => a -> [a] -> [a]
 eraseFrom t ls = let ind = findIndex (== t) ls
@@ -125,3 +152,5 @@ eraseFrom t ls = let ind = findIndex (== t) ls
 
 -----
 
+nageru :: Int -> [T] -> [T] -> Fun
+nageru c t1 t2 st = (st,c+1)
