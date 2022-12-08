@@ -21,13 +21,15 @@ data Ta = Kaz Int
 
 data State = State {pl  :: !Ply
                    ,ens :: ![Enm]
+                   ,tms  :: ![Bul]
                    ,sw  :: !Swi
                    ,mes :: !Mes
                    ,fun :: ![Fun]
                    ,mns :: ![Mana]
                    } deriving (Eq, Show)
-data Ply = Ply {pki :: !Int, pac :: !Int, pst :: !Int} deriving (Eq, Show)
-data Enm = Enm {eki :: !Int, eac :: !Int, est :: !Int} deriving (Eq, Show)
+data Ply = Ply {pki :: !Int,pac :: !Int,pst :: !Int,py :: !Int,px0 :: !Int,px1 :: !Int} deriving (Eq, Show)
+data Enm = Enm {eki :: !Int,eac :: !Int,est :: !Int,ey :: !Int,ex0 :: !Int,ex1 :: !Int} deriving (Eq, Show)
+data Bul = Bul {bt :: !Int,bs :: !Int,by :: !Int,bx :: !Int} deriving (Eq, Show)
 data Swi = Swi {itm :: !Bool} deriving (Eq, Show)
 data Mes = Mes {ms1 :: !String} deriving (Eq, Show)
 
@@ -69,7 +71,7 @@ toKaz str = if (isInfixOf "so" str) then
 
 istoKaz :: String -> Maybe Int
 istoKaz [] = Nothing
-istoKaz [a] = Nothing
+istoKaz [_] = Nothing
 istoKaz (a:b:xs) = let res = M.lookup (a:b:[]) kazElem 
                     in case res of
                          Just 10 -> (+) <$> res <*> (if(xs==[]) then Just 0 else istoKaz xs)
@@ -92,13 +94,16 @@ funcName :: M.Map String (Int -> [T] -> [T] -> Fun)
 funcName = M.fromList [("nageru",nageru)]
 
 state :: State 
-state = State player [enemy] switch message [] [] 
+state = State player [enemy] [tama] switch message [] [] 
 
 player :: Ply
-player = Ply{pki=50, pac=10, pst=10}
+player = Ply{pki=50, pac=10, pst=10, py=0, px0=5, px1=7}
 
 enemy :: Enm
-enemy = Enm{eki=20, eac=8, est=8}
+enemy = Enm{eki=20, eac=8, est=8, ey=10, ex0=4, ex1=8}
+
+tama :: Bul
+tama = Bul{bt=0, bs=0, by=0, bx=0}
 
 switch :: Swi
 switch = Swi{itm=False}
