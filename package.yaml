@@ -24,6 +24,7 @@ dependencies:
 - timers
 - suspend
 - containers
+- split
 
 ghc-options:
 - -Wall

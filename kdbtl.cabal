@@ -35,6 +35,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , split
     , suspend
     , timers
   default-language: Haskell2010
@@ -50,6 +51,7 @@ executable kdbtl-exe
       base >=4.7 && <5
     , containers
     , kdbtl
+    , split
     , suspend
     , timers
   default-language: Haskell2010
@@ -66,6 +68,7 @@ test-suite kdbtl-test
       base >=4.7 && <5
     , containers
     , kdbtl
+    , split
     , suspend
     , timers
   default-language: Haskell2010
