@@ -1,7 +1,8 @@
-module Mydata(State(..), Mana(..), toMana, applyMana, state, (.>)) where
+module Mydata(State(..), Mana(..), toMana, applyMana, state, (.>), toKaz) where
 
 import qualified Data.Map.Strict as M
-import Data.List (findIndex)
+import Data.List (findIndex, isInfixOf)
+import Data.List.Split (splitOn)
 
 data Mana = Mana T Y
 
@@ -54,24 +55,37 @@ getTs mns = map (\(Mana t' _) -> t') mns
 makeManas :: [T] -> Y -> [Mana]
 makeManas ts y = map (\t -> Mana t y) ts
 
+kazElem :: M.Map String Int
+kazElem = M.fromList [("hi",1),("fu",2),("mi",3),("yo",4),("yi",5)
+                     ,("mu",6),("na",7),("ya",8),("ko",9),("so",10)]
+
+toKaz :: String -> Maybe Int
+toKaz str = if (isInfixOf "so" str) then
+                let sps = splitOn "so" str
+                    mbs = map (istoKaz . (++ "so")) (init sps)
+                    mbs' = if(last sps=="") then mbs else mbs++[istoKaz (last sps)]
+                 in foldl (flip (<*>)) (Just 0) $ ((+) <$>) <$> mbs' 
+                                    else istoKaz str
+
+istoKaz :: String -> Maybe Int
+istoKaz [] = Nothing
+istoKaz [a] = Nothing
+istoKaz (a:b:xs) = let res = M.lookup (a:b:[]) kazElem 
+                    in case res of
+                         Just 10 -> (+) <$> res <*> (if(xs==[]) then Just 0 else istoKaz xs)
+                         Just _  -> (*) <$> res <*> (if(xs==[]) then Just 1 else istoKaz xs)
+                         Nothing -> Nothing
+
 manas :: M.Map String Ta 
-manas = M.fromList [("hi",Kaz 1),("fu",Kaz 2),("mi",Kaz 3),("yo",Kaz 4),("yi",Kaz 5)
-                   ,("mu",Kaz 6) ,("na",Kaz 7),("ya",Kaz 8),("ko",Kaz 9),("so",Kaz 10)
-                   ,("to",Zyo 't'),("ga",Zyo 'g')
+manas = M.fromList [("to",Zyo 't'),("ga",Zyo 'g'),("de",Zyo 'd')
                    ,("hodama",Tam [("ho",1)]),("mizutama",Tam [("mi",1)])
                    ,("migi",Hou [("mg",1)]),("hidari",Hou [("hd",1)])
                    ,("nageru",Dou ["Tam"] ["Hou","Kaz"] [] [])]
 
---manasj :: M.Map String Ta 
---manasj = M.fromList [("ひ",Kaz 1),("ふ",Kaz 2),("み",Kaz 3),("よ",Kaz 4),("ゐ",Kaz 5)
---                   ,("む",Kaz 6) ,("な",Kaz 7),("や",Kaz 8),("こ",Kaz 9),("そ",Kaz 10)
---                   ,("と",Zyo 't'),("が",Zyo 'g')
---                   ,("ほだま",Tam [("ho",1)]),("みづたま",Tam [("mi",1)])
---                   ,("みぎ",Hou [("mg",5)]),("ひだり",Hou [("hd",5)])
---                   ,("なげる",Dou ["Tam"] ["Hou","Kaz"] [] [])]
-
 toMana :: String -> Maybe Mana
-toMana str = let ta = M.lookup str manas
+toMana str = let ta = case toKaz str of
+                        Just i  -> Just (Kaz i)
+                        Nothing -> M.lookup str manas
               in (\t -> (Mana (T str t) youM)) <$> ta 
 
 funcName :: M.Map String (Int -> [T] -> [T] -> Fun) 
@@ -116,12 +130,19 @@ toConstr = head . words . show
 (.*.) ((T n1 (Tam ls)):ts) (T n2 (Kaz a)) = (T (n1++"*"++n2) (Tam (map (\(s,n)-> (s,n*a)) ls))):ts
 (.*.) ts t@(T _ (Dou _ _ _ _)) = makeDou t ts
 (.*.) ((T _ (Zyo ch)):ts) t = applZyo ch t ts 
+(.*.) (t:ts) (T _ (Zyo 'd')) = uniSameTai t ts
 (.*.) ts t = t:ts
 
 applZyo :: Char -> T -> [T] -> [T]
 applZyo 't' t ts = t:ts
 applZyo 'g' t ts = ts .*. t
 applZyo _ t ts = t:ts
+
+uniSameTai :: T -> [T] -> [T]
+uniSameTai t [] = [t]
+uniSameTai t@(T _ ta1) ts@((T _ ta2):_) 
+  | toConstr ta1 == toConstr ta2 = case ts .+. t of (nt:nts) -> uniSameTai nt nts; [] -> []
+  | otherwise = t:ts
 
 makeDou :: T -> [T] -> [T]
 makeDou  d [] = [d] 
