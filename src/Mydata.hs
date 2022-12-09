@@ -14,8 +14,8 @@ type Na = String
 
 data Ta = Kaz Int
         | Zyo Char
-        | Hou [(String,Int)]
-        | Tam [(String,Int)]
+        | Hou [(Dr,Int)]
+        | Tam [(Bu,Int)]
         | Dou [String] [String] [T] [T]
         deriving (Eq, Show)
 
@@ -24,16 +24,18 @@ data State = State {pl  :: !Ply
                    ,tms  :: ![Bul]
                    ,sw  :: !Swi
                    ,mes :: !Mes
-                   ,fun :: ![Fun]
                    ,mns :: ![Mana]
                    } deriving (Eq, Show)
 data Ply = Ply {pki :: !Int,pac :: !Int,pst :: !Int,py :: !Int,px0 :: !Int,px1 :: !Int} deriving (Eq, Show)
 data Enm = Enm {eki :: !Int,eac :: !Int,est :: !Int,ey :: !Int,ex0 :: !Int,ex1 :: !Int} deriving (Eq, Show)
-data Bul = Bul {bt :: !Int,bs :: !Int,by :: !Int,bx :: !Int} deriving (Eq, Show)
+data Bul = Bul {bt :: !Bu,bs :: !Int,by :: !Int,bx :: !Int,bdy :: !Int,bdx :: !Int} deriving (Eq, Show)
 data Swi = Swi {itm :: !Bool} deriving (Eq, Show)
 data Mes = Mes {ms1 :: !String} deriving (Eq, Show)
 
-type Fun = State -> (State,Int)
+type Fun = [T] -> [T] -> State -> State
+
+data Bu = Ho | Mi deriving (Eq, Show)           -- Tama Type Hodama, Mizutama
+data Dr = Mg | Hd | Ue | Si deriving (Eq, Show) -- Direction Migi, Hidari, Ue, Sita
 
 instance Eq Fun where
   (==) f1 f2 = f1==f2
@@ -80,8 +82,8 @@ istoKaz (a:b:xs) = let res = M.lookup (a:b:[]) kazElem
 
 manas :: M.Map String Ta 
 manas = M.fromList [("to",Zyo 't'),("ga",Zyo 'g'),("de",Zyo 'd')
-                   ,("hodama",Tam [("ho",1)]),("mizutama",Tam [("mi",1)])
-                   ,("migi",Hou [("mg",1)]),("hidari",Hou [("hd",1)])
+                   ,("hodama",Tam [(Ho,1)]),("mizutama",Tam [(Mi,1)])
+                   ,("migi",Hou [(Mg,1)]),("hidari",Hou [(Hd,1)])
                    ,("nageru",Dou ["Tam"] ["Hou","Kaz"] [] [])]
 
 toMana :: String -> Maybe Mana
@@ -90,20 +92,17 @@ toMana str = let ta = case toKaz str of
                         Nothing -> M.lookup str manas
               in (\t -> (Mana (T str t) youM)) <$> ta 
 
-funcName :: M.Map String (Int -> [T] -> [T] -> Fun) 
+funcName :: M.Map String Fun 
 funcName = M.fromList [("nageru",nageru)]
 
 state :: State 
-state = State player [enemy] [tama] switch message [] [] 
+state = State player [enemy] [] switch message [] 
 
 player :: Ply
 player = Ply{pki=50, pac=10, pst=10, py=0, px0=5, px1=7}
 
 enemy :: Enm
 enemy = Enm{eki=20, eac=8, est=8, ey=10, ex0=4, ex1=8}
-
-tama :: Bul
-tama = Bul{bt=0, bs=0, by=0, bx=0}
 
 switch :: Swi
 switch = Swi{itm=False}
@@ -164,10 +163,10 @@ applyMana :: State -> Mana -> State
 applyMana st m@(Mana (T na (Dou _ _ ts1 ts2)) _) = 
   let nam = head$words na
       fnc = M.lookup nam funcName
-      sfn = fun st
+      st' = st{mns = mns st ++ [m]}
    in case fnc of
-        Nothing -> st{mns = mns st ++ [m]}
-        Just f  -> st{fun = sfn ++ [f 0 ts1 ts2], mns = mns st ++ [m]}
+        Nothing -> st'
+        Just f  -> f ts1 ts2 st'
 applyMana st m = st{mns= mns st ++ [m]}
 
 eraseFrom :: Eq a => a -> [a] -> [a]
@@ -177,6 +176,33 @@ eraseFrom t ls = let ind = findIndex (== t) ls
                        Just i  -> take i ls ++ drop (i+1) ls
 
 -----
+er1 :: String
+er1 = "No Tama"
 
-nageru :: Int -> [T] -> [T] -> Fun
-nageru c t1 t2 st = (st,c+1)
+nageru :: Fun
+nageru [] _ st = st{mes=Mes er1}
+nageru ((T _ (Tam tm)):[]) [] st = st{tms=(tms st) ++ makeBullets tm [] 1 (getPlp st)} 
+nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):[]) st = st{tms=(tms st) ++ makeBullets tm hus 1 (getPlp st)} 
+nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):[]) st = st{tms=(tms st) ++ makeBullets tm [] kz (getPlp st)} 
+nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):(T _ (Kaz kz)):[]) st =
+                                          st{tms=(tms st) ++ makeBullets tm hus kz (getPlp st)} 
+nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):(T _ (Hou hus)):[]) st =
+                                          st{tms=(tms st) ++ makeBullets tm hus kz (getPlp st)} 
+nageru _ _ st = st
+
+makeBullets :: [(Bu,Int)] -> [(Dr,Int)] -> Int -> (Int, Int, Int) -> [Bul]
+makeBullets [] _ _ _ = []
+makeBullets ((b,s):bs) hus sp (y,x0,x1) = 
+  let (dy, dx) = calcDelta hus sp
+   in (Bul{bt=b, bs=s, by=y, bx=(x0+x1) `div` 2, bdy=dy, bdx=dx}):makeBullets bs hus sp (y,x0,x1)
+
+getPlp :: State -> (Int, Int, Int)
+getPlp st = let p = pl st in (py p, px0 p, px1 p)
+
+calcDelta :: [(Dr,Int)] -> Int -> (Int, Int)
+calcDelta hus sp = (sp, calcDx hus)
+  where calcDx [] = 0
+        calcDx ((dir,i):hs) 
+          | dir==Mg = i + calcDx hs
+          | dir==Hd = (-i) + calcDx hs
+          | otherwise = calcDx hs
