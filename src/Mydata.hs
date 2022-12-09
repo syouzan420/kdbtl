@@ -1,4 +1,5 @@
-module Mydata(State(..), Mana(..), toMana, applyMana, state, (.>), toKaz) where
+module Mydata(State(..), Mana(..), Ply(..), Enm(..), Bul(..), Mes(..)
+             ,toMana, applyMana, state, (.>), toKaz) where
 
 import qualified Data.Map.Strict as M
 import Data.List (findIndex, isInfixOf)
@@ -26,8 +27,10 @@ data State = State {pl  :: !Ply
                    ,mes :: !Mes
                    ,mns :: ![Mana]
                    } deriving (Eq, Show)
-data Ply = Ply {pki :: !Int,pac :: !Int,pst :: !Int,py :: !Int,px0 :: !Int,px1 :: !Int} deriving (Eq, Show)
-data Enm = Enm {eki :: !Int,eac :: !Int,est :: !Int,ey :: !Int,ex0 :: !Int,ex1 :: !Int} deriving (Eq, Show)
+data Ply = Ply {pki :: !Int,pac :: !Int,pst :: !Int,py :: !Int,px0 :: !Int,px1 :: !Int,pdx :: !Int}
+                                                                                    deriving (Eq, Show)
+data Enm = Enm {eki :: !Int,eac :: !Int,est :: !Int,ey :: !Int,ex0 :: !Int,ex1 :: !Int,edx :: !Int}
+                                                                                    deriving (Eq, Show)
 data Bul = Bul {bt :: !Bu,bs :: !Int,by :: !Int,bx :: !Int,bdy :: !Int,bdx :: !Int} deriving (Eq, Show)
 data Swi = Swi {itm :: !Bool} deriving (Eq, Show)
 data Mes = Mes {ms1 :: !String} deriving (Eq, Show)
@@ -99,10 +102,10 @@ state :: State
 state = State player [enemy] [] switch message [] 
 
 player :: Ply
-player = Ply{pki=50, pac=10, pst=10, py=0, px0=5, px1=7}
+player = Ply{pki=50, pac=10, pst=10, py=0, px0=5, px1=7, pdx=0}
 
 enemy :: Enm
-enemy = Enm{eki=20, eac=8, est=8, ey=10, ex0=4, ex1=8}
+enemy = Enm{eki=20, eac=8, est=8, ey=10, ex0=4, ex1=8, edx=0}
 
 switch :: Swi
 switch = Swi{itm=False}
