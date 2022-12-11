@@ -26,7 +26,7 @@ appMain = do
         let s' = doWithTime s
         if (s/=s') then putStrLn ("\n"++(show s')) >> putStr "> " else return ()
         writeIORef st s'
-  tm <- repeatedTimer timerR (msDelay 1000)
+  tm <- repeatedTimer timerR (msDelay 500)
   appLoop
   stopTimer tm
 
@@ -63,7 +63,7 @@ changePly (Mes m) (Ply pki' pac' pst' py' px0' px1' pdx') (b@(Bul _ bs' by' bx' 
             (Ply (pki'- (abs pdx')) pac' pst' py' (px0'+pdx') (px1'+pdx') pdx') bs (bls++[b])
   
 changeEnms :: Mes -> [Enm] -> [Bul] -> [Enm] -> [Bul] -> (Mes,[Enm],[Bul])
-changeEnms m [] _ enms bls = (m, enms, bls)
+changeEnms m [] bls enms _ = (m, enms, bls)
 changeEnms m (e:es) [] enms bls = changeEnms m es bls (enms++[e]) []
 changeEnms (Mes m) ((Enm eki' eac' est' ey' ex0' ex1' edx'):es)
                     (b@(Bul _ bs' by' bx' bdy' _):bs) enms bls =
@@ -79,7 +79,10 @@ changeEnms (Mes m) ((Enm eki' eac' est' ey' ex0' ex1' edx'):es)
 changeBuls :: Mes -> [Bul] -> [Bul] -> (Mes,[Bul])
 changeBuls m [] bls = (m,bls) 
 changeBuls (Mes m) ((Bul bt' bs' by' bx' bdy' bdx'):bs) bls =
-  changeBuls (Mes m) bs (bls++[Bul bt' bs' (by'+bdy') (bx'+bdx') bdy' bdx'])
+  let nby = by'+bdy'
+   in if (nby>10 || nby<0)
+         then changeBuls (Mes m) bs bls
+         else changeBuls (Mes m) bs (bls++[Bul bt' bs' nby (bx'+bdx') bdy' bdx'])
   
 
 
