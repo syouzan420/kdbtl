@@ -1,5 +1,5 @@
 module Mydata(State(..), Mana(..), Ply(..), Enm(..), Bul(..), Mes(..)
-             ,toMana, applyMana, state, (.>), toKaz) where
+             ,toMana, applyMana, state, (.>), maxY) where
 
 import qualified Data.Map.Strict as M
 import Data.List (findIndex, isInfixOf)
@@ -27,15 +27,17 @@ data State = State {pl  :: !Ply
                    ,mes :: !Mes
                    ,mns :: ![Mana]
                    } deriving (Eq, Show)
-data Ply = Ply {pki :: !Int,pac :: !Int,pst :: !Int,py :: !Int,px0 :: !Int,px1 :: !Int,pdx :: !Int}
-                                                                                    deriving (Eq, Show)
-data Enm = Enm {eki :: !Int,eac :: !Int,est :: !Int,ey :: !Int,ex0 :: !Int,ex1 :: !Int,edx :: !Int}
-                                                                                    deriving (Eq, Show)
+
+-- ki:genki, mki: max genki, rt: recover time, mrt: max recover time
+data Ply = Ply {pki :: !Int, pmki :: !Int, prt :: !Int, pmrt :: !Int
+               ,py :: !Int, px0 :: !Int, px1 :: !Int, pdx :: !Int} deriving (Eq, Show)
+data Enm = Enm {eki :: !Int, emki :: !Int, ert :: !Int, emrt :: !Int
+               ,ey :: !Int, ex0 :: !Int, ex1 :: !Int, edx :: !Int} deriving (Eq, Show)
 data Bul = Bul {bt :: !Bu,bs :: !Int,by :: !Int,bx :: !Int,bdy :: !Int,bdx :: !Int} deriving (Eq, Show)
 data Swi = Swi {itm :: !Bool} deriving (Eq, Show)
 data Mes = Mes {ms1 :: !String} deriving (Eq, Show)
 
-type Fun = [T] -> [T] -> State -> State
+type Fun = [T] -> [T] -> State -> (State,Int)
 
 data Bu = Ho | Mi deriving (Eq, Show)           -- Tama Type Hodama, Mizutama
 data Dr = Mg | Hd | Ue | Si deriving (Eq, Show) -- Direction Migi, Hidari, Ue, Sita
@@ -98,14 +100,17 @@ toMana str = let ta = case toKaz str of
 funcName :: M.Map String Fun 
 funcName = M.fromList [("nageru",nageru)]
 
+maxY :: Int
+maxY = 10
+
 state :: State 
 state = State player [enemy] [] switch message [] 
 
 player :: Ply
-player = Ply{pki=50, pac=10, pst=10, py=0, px0=5, px1=7, pdx=0}
+player = Ply{pki=50, pmki=50, prt=10, pmrt=10, py=0, px0=5, px1=7, pdx=0}
 
 enemy :: Enm
-enemy = Enm{eki=20, eac=8, est=8, ey=10, ex0=4, ex1=8, edx=0}
+enemy = Enm{eki=20, emki=20, ert=15, emrt=15, ey=10, ex0=4, ex1=8, edx=0}
 
 switch :: Swi
 switch = Swi{itm=False}
@@ -165,11 +170,20 @@ makeDou _ ts = ts
 applyMana :: State -> Mana -> State
 applyMana st m@(Mana (T na (Dou _ _ ts1 ts2)) _) = 
   let nam = head$words na
-      fnc = M.lookup nam funcName
+      nms = splitOn "*" nam
+      tg = if (length nms==1) then (-1) else (read (last nms))::Int
+      fnc = M.lookup (head nms) funcName
       st' = st{mns = mns st ++ [m]}
-   in case fnc of
-        Nothing -> st'
-        Just f  -> f ts1 ts2 st'
+      (nst,cs) = case fnc of
+                    Nothing -> (st',0)
+                    Just f  -> f ts1 ts2 st'
+      enms = ens nst
+      tki = if (tg==(-1)) then pki$pl$nst else eki$enms!!tg
+      nen = if (tg>=0) then (enms!!tg){eki=tki-cs} else enms!!0 
+      nens = if (tg>=0) then take tg enms ++ [nen] ++ drop (tg+1) enms else enms
+      icast = tki > cs
+   in if icast then if (tg==(-1)) then nst{pl=(pl nst){pki=tki-cs}} else nst{ens=nens}
+               else nst{mes=Mes "not enough KI!"}
 applyMana st m = st{mns= mns st ++ [m]}
 
 eraseFrom :: Eq a => a -> [a] -> [a]
@@ -183,21 +197,25 @@ er1 :: String
 er1 = "No Tama"
 
 nageru :: Fun
-nageru [] _ st = st{mes=Mes er1}
-nageru ((T _ (Tam tm)):[]) [] st = st{tms=(tms st) ++ makeBullets tm [] 1 (getPlp st)} 
-nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):[]) st = st{tms=(tms st) ++ makeBullets tm hus 1 (getPlp st)} 
-nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):[]) st = st{tms=(tms st) ++ makeBullets tm [] kz (getPlp st)} 
-nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):(T _ (Kaz kz)):[]) st =
-                                          st{tms=(tms st) ++ makeBullets tm hus kz (getPlp st)} 
-nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):(T _ (Hou hus)):[]) st =
-                                          st{tms=(tms st) ++ makeBullets tm hus kz (getPlp st)} 
-nageru _ _ st = st
+nageru [] _ st = (st{mes=Mes er1},0)
+nageru ((T _ (Tam tm)):[]) [] st = (st{tms=(tms st)++(fst mkb)},snd mkb)
+  where mkb = makeBullets tm [] 1 (getPlp st) 
+nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):[]) st = (st{tms=(tms st)++(fst mkb)},snd mkb)
+  where mkb = makeBullets tm hus 1 (getPlp st) 
+nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):[]) st = (st{tms=(tms st)++(fst mkb)},snd mkb)
+  where mkb = makeBullets tm [] kz (getPlp st) 
+nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):(T _ (Kaz kz)):[]) st = (st{tms=(tms st)++(fst mkb)},snd mkb)
+  where mkb = makeBullets tm hus kz (getPlp st) 
+nageru ((T _ (Tam tm)):[]) ((T _ (Kaz kz)):(T _ (Hou hus)):[]) st = (st{tms=(tms st)++(fst mkb)},snd mkb)
+  where mkb = makeBullets tm hus kz (getPlp st) 
+nageru _ _ st = (st,0)
 
-makeBullets :: [(Bu,Int)] -> [(Dr,Int)] -> Int -> (Int, Int, Int) -> [Bul]
-makeBullets [] _ _ _ = []
+makeBullets :: [(Bu,Int)] -> [(Dr,Int)] -> Int -> (Int, Int, Int) -> ([Bul],Int)
+makeBullets [] _ _ _ = ([],0)
 makeBullets ((b,s):bs) hus sp (y,x0,x1) = 
   let (dy, dx) = calcDelta hus sp
-   in (Bul{bt=b, bs=s, by=y, bx=(x0+x1) `div` 2, bdy=dy, bdx=dx}):makeBullets bs hus sp (y,x0,x1)
+   in ((Bul{bt=b, bs=s, by=y, bx=(x0+x1) `div` 2, bdy=dy, bdx=dx}):(fst mkb),(s*sp)+(snd mkb))
+  where mkb = makeBullets bs hus sp (y,x0,x1)
 
 getPlp :: State -> (Int, Int, Int)
 getPlp st = let p = pl st in (py p, px0 p, px1 p)

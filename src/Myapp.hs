@@ -4,7 +4,8 @@ import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
 import Data.IORef(newIORef, readIORef, writeIORef)
 import Control.Concurrent.Timer(repeatedTimer, stopTimer)
 import Control.Concurrent.Suspend(msDelay)
-import Mydata(State(..), Mana, Ply(..), Enm(..), Bul(..), Mes(..), toMana, state, applyMana, (.>))
+import Mydata(State(..), Mana, Ply(..), Enm(..), Bul(..), Mes(..)
+             ,toMana, state, applyMana, (.>), maxY)
 
 appMain :: IO ()
 appMain = do
@@ -51,36 +52,51 @@ doWithTime (State p es ts s ms mns) =
    in State np nes ts3 s ms3 mns
 
 changePly :: Mes -> Ply -> [Bul] -> [Bul] -> (Mes,Ply,[Bul])
-changePly m p [] bls = (m, p, bls)
-changePly (Mes m) (Ply pki' pac' pst' py' px0' px1' pdx') (b@(Bul _ bs' by' bx' bdy' _):bs) bls =
+changePly m p [] bls = (m, normalPly p, bls)
+changePly (Mes m) p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') (b@(Bul _ bs' by' bx' bdy' _):bs) bls =
   if (bdy'<0 && by'<=py' && bx'>=px0' && bx'<=px1') 
      then let npki = pki' - bs'
            in if (npki > 0)
                  then changePly (Mes (m++"\nattacked!"))
-                        (Ply (pki'-bs') pac' pst' py' (px0'+pdx') (px1'+pdx') pdx') bs bls
-                 else (Mes (m++"\nlose!"), Ply 0 pac' pst' py' px0' px1' 0, [])
-     else changePly (Mes m)
-            (Ply (pki'- (abs pdx')) pac' pst' py' (px0'+pdx') (px1'+pdx') pdx') bs (bls++[b])
+                        (Ply (pki'-bs') pmki' prt' pmrt' py' (px0'+pdx') (px1'+pdx') pdx') bs bls
+                 else (Mes (m++"\nlose!"), Ply 0 pmki' prt' pmrt' py' px0' px1' 0, [])
+     else changePly (Mes m) (normalPly p) bs (bls++[b])
+
+normalPly :: Ply -> Ply
+normalPly p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') =
+  if(pdx'==0) then
+    if(prt'<0 && pki'<pmki') then Ply (pki'+1) pmki' pmrt' pmrt' py' px0' px1' pdx'
+                             else if(pki'<pmki') then Ply pki' pmki' (prt'-1) pmrt' py' px0' px1' pdx'
+                                                 else p
+              else Ply pki' pmki' prt' pmrt' py' (px0'+pdx') (px1'+pdx') 0 
   
 changeEnms :: Mes -> [Enm] -> [Bul] -> [Enm] -> [Bul] -> (Mes,[Enm],[Bul])
 changeEnms m [] bls enms _ = (m, enms, bls)
+changeEnms m (e:es) [] enms [] = changeEnms m es [] (enms++[normalEnm e]) []
 changeEnms m (e:es) [] enms bls = changeEnms m es bls (enms++[e]) []
-changeEnms (Mes m) ((Enm eki' eac' est' ey' ex0' ex1' edx'):es)
+changeEnms (Mes m) (e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx'):es)
                     (b@(Bul _ bs' by' bx' bdy' _):bs) enms bls =
   if (bdy'>0 && by'>=ey' && bx'>=ex0' && bx'<=ex1') 
      then let neki = eki' - bs'
            in if (neki > 0) 
                  then changeEnms (Mes (m++"\nhit!"))
-                        ((Enm (eki'-bs') eac' est' ey' (ex0'+edx') (ex1'+edx') edx'):es) bs enms bls
+                       ((Enm (eki'-bs') emki' ert' emrt' ey' (ex0'+edx') (ex1'+edx') edx'):es) bs enms bls
                  else changeEnms (Mes (m++"\ndefeat!")) es bs enms bls
-     else changeEnms (Mes m)
-            ((Enm (eki'- (abs edx')) eac' est' ey' (ex0'+edx') (ex1'+edx') edx'):es) bs enms (bls++[b])
+     else changeEnms (Mes m) ((normalEnm e):es) bs enms (bls++[b])
+
+normalEnm :: Enm -> Enm 
+normalEnm e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx') =
+  if(edx'==0) then
+    if(ert'<0 && eki'<emki') then Enm (eki'+1) emki' emrt' emrt' ey' ex0' ex1' edx'
+                             else if(eki'<emki') then Enm eki' emki' (ert'-1) emrt' ey' ex0' ex1' edx'
+                                                 else e
+              else Enm eki' emki' ert' emrt' ey' (ex0'+edx') (ex1'+edx') 0
 
 changeBuls :: Mes -> [Bul] -> [Bul] -> (Mes,[Bul])
 changeBuls m [] bls = (m,bls) 
 changeBuls (Mes m) ((Bul bt' bs' by' bx' bdy' bdx'):bs) bls =
   let nby = by'+bdy'
-   in if (nby>10 || nby<0)
+   in if (nby>(maxY+bs') || nby<(0-bs'))
          then changeBuls (Mes m) bs bls
          else changeBuls (Mes m) bs (bls++[Bul bt' bs' nby (bx'+bdx') bdy' bdx'])
   
