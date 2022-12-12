@@ -58,9 +58,10 @@ changePly (Mes m) p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') (b@(Bul _ bs'
      then let npki = pki' - bs'
            in if (npki > 0)
                  then changePly (Mes (m++"\nattacked!"))
-                        (Ply (pki'-bs') pmki' prt' pmrt' py' (px0'+pdx') (px1'+pdx') pdx') bs bls
+                        (Ply (pki'-bs') pmki' prt' pmrt' py' (px0'+dr) (px1'+dr) (pdx'-dr)) bs bls
                  else (Mes (m++"\nlose!"), Ply 0 pmki' prt' pmrt' py' px0' px1' 0, [])
      else changePly (Mes m) (normalPly p) bs (bls++[b])
+                          where dr=if(pdx'>0) then 1 else if(pdx'<0) then (-1) else 0
 
 normalPly :: Ply -> Ply
 normalPly p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') =
@@ -68,7 +69,8 @@ normalPly p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') =
     if(prt'<0 && pki'<pmki') then Ply (pki'+1) pmki' pmrt' pmrt' py' px0' px1' pdx'
                              else if(pki'<pmki') then Ply pki' pmki' (prt'-1) pmrt' py' px0' px1' pdx'
                                                  else p
-              else Ply pki' pmki' prt' pmrt' py' (px0'+pdx') (px1'+pdx') 0 
+              else Ply pki' pmki' prt' pmrt' py' (px0'+dr) (px1'+dr) (pdx'-dr) 
+                where dr=if(pdx'>0) then 1 else (-1)
   
 changeEnms :: Mes -> [Enm] -> [Bul] -> [Enm] -> [Bul] -> (Mes,[Enm],[Bul])
 changeEnms m [] bls enms _ = (m, enms, bls)
@@ -80,9 +82,10 @@ changeEnms (Mes m) (e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx'):es)
      then let neki = eki' - bs'
            in if (neki > 0) 
                  then changeEnms (Mes (m++"\nhit!"))
-                       ((Enm (eki'-bs') emki' ert' emrt' ey' (ex0'+edx') (ex1'+edx') edx'):es) bs enms bls
+                       ((Enm (eki'-bs') emki' ert' emrt' ey' (ex0'+dr) (ex1'+dr) (edx'-dr)):es) bs enms bls
                  else changeEnms (Mes (m++"\ndefeat!")) es bs enms bls
      else changeEnms (Mes m) ((normalEnm e):es) bs enms (bls++[b])
+                          where dr=if(edx'>0) then 1 else if(edx'<0) then (-1) else 0
 
 normalEnm :: Enm -> Enm 
 normalEnm e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx') =
@@ -90,7 +93,8 @@ normalEnm e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx') =
     if(ert'<0 && eki'<emki') then Enm (eki'+1) emki' emrt' emrt' ey' ex0' ex1' edx'
                              else if(eki'<emki') then Enm eki' emki' (ert'-1) emrt' ey' ex0' ex1' edx'
                                                  else e
-              else Enm eki' emki' ert' emrt' ey' (ex0'+edx') (ex1'+edx') 0
+              else Enm eki' emki' ert' emrt' ey' (ex0'+dr) (ex1'+dr) (edx'-dr) 
+                where dr=if(edx'>0) then 1 else (-1)
 
 changeBuls :: Mes -> [Bul] -> [Bul] -> (Mes,[Bul])
 changeBuls m [] bls = (m,bls) 

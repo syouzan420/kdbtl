@@ -89,7 +89,8 @@ manas :: M.Map String Ta
 manas = M.fromList [("to",Zyo 't'),("ga",Zyo 'g'),("de",Zyo 'd')
                    ,("hodama",Tam [(Ho,1)]),("mizutama",Tam [(Mi,1)])
                    ,("migi",Hou [(Mg,1)]),("hidari",Hou [(Hd,1)])
-                   ,("nageru",Dou ["Tam"] ["Hou","Kaz"] [] [])]
+                   ,("nageru",Dou ["Tam"] ["Hou","Kaz"] [] [])
+                   ,("ugoku",Dou ["Hou"] ["Kaz"] [] [])]
 
 toMana :: String -> Maybe Mana
 toMana str = let ta = case toKaz str of
@@ -98,7 +99,7 @@ toMana str = let ta = case toKaz str of
               in (\t -> (Mana (T str t) youM)) <$> ta 
 
 funcName :: M.Map String Fun 
-funcName = M.fromList [("nageru",nageru)]
+funcName = M.fromList [("nageru",nageru),("ugoku",ugoku)]
 
 maxY :: Int
 maxY = 10
@@ -193,11 +194,17 @@ eraseFrom t ls = let ind = findIndex (== t) ls
                        Just i  -> take i ls ++ drop (i+1) ls
 
 -----
-er1 :: String
-er1 = "No Tama"
+
+ugoku :: Fun
+ugoku [] _ st = (st{mes=Mes "No Direction"},0)
+ugoku ((T _ (Hou hus)):[]) [] st = (st{pl=(pl st){pdx=dlt}},abs dlt)
+  where (_,dlt) = calcDelta hus 1
+ugoku ((T _ (Hou hus)):[]) ((T _ (Kaz kz)):[]) st = (st{pl=(pl st){pdx=dlt*sp}},(abs dlt)*sp)
+  where (sp,dlt) = calcDelta hus kz 
+ugoku _ _ st = (st,0)
 
 nageru :: Fun
-nageru [] _ st = (st{mes=Mes er1},0)
+nageru [] _ st = (st{mes=Mes "No Tama"},0)
 nageru ((T _ (Tam tm)):[]) [] st = (st{tms=(tms st)++(fst mkb)},snd mkb)
   where mkb = makeBullets tm [] 1 (getPlp st) 
 nageru ((T _ (Tam tm)):[]) ((T _ (Hou hus)):[]) st = (st{tms=(tms st)++(fst mkb)},snd mkb)
