@@ -42,11 +42,11 @@ type Fun = [T] -> [T] -> State -> (State,Int)
 data Bu = Ho | Mi deriving (Eq, Show)           -- Tama Type Hodama, Mizutama
 data Dr = Mg | Hd | Ue | Si deriving (Eq, Show) -- Direction Migi, Hidari, Ue, Sita
 
-instance Eq Fun where
-  (==) f1 f2 = f1==f2
+--instance Eq Fun where
+--  (==) f1 f2 = f1==f2
 
-instance Show Fun where
-  show _ = "FUNC"
+--instance Show Fun where
+--  show _ = "FUNC"
 
 instance Eq Mana where
   (==) (Mana t1 _) (Mana t2 _) = t1==t2

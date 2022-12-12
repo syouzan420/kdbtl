@@ -25,6 +25,7 @@ dependencies:
 - suspend
 - containers
 - split
+- ansi-terminal
 
 ghc-options:
 - -Wall

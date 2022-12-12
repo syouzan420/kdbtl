@@ -1,6 +1,8 @@
 module Myapp(appMain,state) where
 
 import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
+import System.Console.ANSI(clearFromCursorToScreenBeginning, saveCursor, clearLine
+                          ,cursorUpLine, restoreCursor)
 import Data.IORef(newIORef, readIORef, writeIORef)
 import Control.Concurrent.Timer(repeatedTimer, stopTimer)
 import Control.Concurrent.Suspend(msDelay)
@@ -17,50 +19,69 @@ appMain = do
         if (com=="exit") then return () else do
           let s' = exeCom com s
           case s' of
-            Nothing -> putStrLn "Error!"
+            Nothing -> showMIO "Error!"
             Just js -> do
-              putStrLn (showS js)
+              showMIO ""
+              showSIO js
               writeIORef st js
           appLoop
   let timerR = do
         s <- readIORef st
         let s' = doWithTime s
-        if (s/=s') then putStrLn ("\n"++(show s')) >> putStr "> " else return ()
+        if (s/=s') then showSIO s' else return ()
         writeIORef st s'
   tm <- repeatedTimer timerR (msDelay 500)
   appLoop
   stopTimer tm
 
-showS :: State -> String
-showS = show 
+showSIO :: State -> IO () 
+showSIO s = do
+  saveCursor
+  cursorUpLine 6
+  --setCursorPosition 19 0
+  clearLine
+  clearFromCursorToScreenBeginning
+  cursorUpLine 5
+  --setCursorPosition 10 0
+  putStrLn (show s)
+  restoreCursor
+
+showMIO :: String -> IO ()
+showMIO m = do
+  saveCursor
+  cursorUpLine 5
+  --setCursorPosition 20 0
+  clearLine
+  putStrLn m
+  restoreCursor
 
 exeCom :: String -> State -> Maybe State 
 exeCom com s = let coms =  words com
-                   mns = map toMana coms
-                   res = foldl (\acc mn -> case mn of Just m' -> acc .> m'; _ -> acc) [] mns
+                   manas = map toMana coms
+                   res = foldl (\acc mn -> case mn of Just m' -> acc .> m'; _ -> acc) [] manas
                 in if (res==[]) then Nothing else Just (makeState s{mns=[]} res)
 
 makeState :: State -> [Mana] -> State
 makeState st [] = st
-makeState st (mn:mns) = makeState (applyMana st mn) mns 
+makeState st (mn:manas) = makeState (applyMana st mn) manas 
 
 doWithTime :: State -> State 
-doWithTime (State p es ts s ms mns) =
-  let (ms1,np,ts1) = changePly ms p ts []
-      (ms2,nes,ts2) = changeEnms ms1 es ts1 [] []
-      (ms3,ts3) = changeBuls ms2 ts2 []
-   in State np nes ts3 s ms3 mns
+doWithTime (State p es ts s ms manas) =
+  let (ms',np,ts1) = changePly ms p ts []
+      (ms'',nes,ts2) = changeEnms ms' es ts1 [] []
+      (ms''',ts3) = changeBuls ms'' ts2 []
+   in State np nes ts3 s ms''' manas
 
 changePly :: Mes -> Ply -> [Bul] -> [Bul] -> (Mes,Ply,[Bul])
 changePly m p [] bls = (m, normalPly p, bls)
-changePly (Mes m) p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') (b@(Bul _ bs' by' bx' bdy' _):bs) bls =
+changePly (Mes m) p@(Ply pki' pmki' prt' pmrt' py' px0' px1' pdx') (b@(Bul _ bs' by' bx' bdy' _):bss) bls =
   if (bdy'<0 && by'<=py' && bx'>=px0' && bx'<=px1') 
      then let npki = pki' - bs'
            in if (npki > 0)
                  then changePly (Mes (m++"\nattacked!"))
-                        (Ply (pki'-bs') pmki' prt' pmrt' py' (px0'+dr) (px1'+dr) (pdx'-dr)) bs bls
+                        (Ply (pki'-bs') pmki' prt' pmrt' py' (px0'+dr) (px1'+dr) (pdx'-dr)) bss bls
                  else (Mes (m++"\nlose!"), Ply 0 pmki' prt' pmrt' py' px0' px1' 0, [])
-     else changePly (Mes m) (normalPly p) bs (bls++[b])
+     else changePly (Mes m) (normalPly p) bss (bls++[b])
                           where dr=if(pdx'>0) then 1 else if(pdx'<0) then (-1) else 0
 
 normalPly :: Ply -> Ply
@@ -77,14 +98,14 @@ changeEnms m [] bls enms _ = (m, enms, bls)
 changeEnms m (e:es) [] enms [] = changeEnms m es [] (enms++[normalEnm e]) []
 changeEnms m (e:es) [] enms bls = changeEnms m es bls (enms++[e]) []
 changeEnms (Mes m) (e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx'):es)
-                    (b@(Bul _ bs' by' bx' bdy' _):bs) enms bls =
+                    (b@(Bul _ bs' by' bx' bdy' _):bss) enms bls =
   if (bdy'>0 && by'>=ey' && bx'>=ex0' && bx'<=ex1') 
      then let neki = eki' - bs'
            in if (neki > 0) 
                  then changeEnms (Mes (m++"\nhit!"))
-                       ((Enm (eki'-bs') emki' ert' emrt' ey' (ex0'+dr) (ex1'+dr) (edx'-dr)):es) bs enms bls
-                 else changeEnms (Mes (m++"\ndefeat!")) es bs enms bls
-     else changeEnms (Mes m) ((normalEnm e):es) bs enms (bls++[b])
+                    ((Enm (eki'-bs') emki' ert' emrt' ey' (ex0'+dr) (ex1'+dr) (edx'-dr)):es) bss enms bls
+                 else changeEnms (Mes (m++"\ndefeat!")) es bss enms bls
+     else changeEnms (Mes m) ((normalEnm e):es) bss enms (bls++[b])
                           where dr=if(edx'>0) then 1 else if(edx'<0) then (-1) else 0
 
 normalEnm :: Enm -> Enm 
@@ -98,11 +119,11 @@ normalEnm e@(Enm eki' emki' ert' emrt' ey' ex0' ex1' edx') =
 
 changeBuls :: Mes -> [Bul] -> [Bul] -> (Mes,[Bul])
 changeBuls m [] bls = (m,bls) 
-changeBuls (Mes m) ((Bul bt' bs' by' bx' bdy' bdx'):bs) bls =
+changeBuls (Mes m) ((Bul bt' bs' by' bx' bdy' bdx'):bss) bls =
   let nby = by'+bdy'
    in if (nby>(maxY+bs') || nby<(0-bs'))
-         then changeBuls (Mes m) bs bls
-         else changeBuls (Mes m) bs (bls++[Bul bt' bs' nby (bx'+bdx') bdy' bdx'])
+         then changeBuls (Mes m) bss bls
+         else changeBuls (Mes m) bss (bls++[Bul bt' bs' nby (bx'+bdx') bdy' bdx'])
   
 
 
