@@ -38,11 +38,9 @@ showSIO :: State -> IO ()
 showSIO s = do
   saveCursor
   cursorUpLine 6
-  --setCursorPosition 19 0
   clearLine
   clearFromCursorToScreenBeginning
   cursorUpLine 5
-  --setCursorPosition 10 0
   putStrLn (show s)
   restoreCursor
 
@@ -50,7 +48,6 @@ showMIO :: String -> IO ()
 showMIO m = do
   saveCursor
   cursorUpLine 5
-  --setCursorPosition 20 0
   clearLine
   putStrLn m
   restoreCursor
