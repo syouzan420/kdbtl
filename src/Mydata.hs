@@ -184,7 +184,7 @@ applyMana st m@(Mana (T na (Dou _ _ ts1 ts2)) _) =
       nens = if (tg>=0) then take tg enms ++ [nen] ++ drop (tg+1) enms else enms
       icast = tki > cs
    in if icast then if (tg==(-1)) then nst{pl=(pl nst){pki=tki-cs}} else nst{ens=nens}
-               else nst{mes=Mes "not enough KI!"}
+               else st'{mes=Mes "not enough KI!"}
 applyMana st m = st{mns= mns st ++ [m]}
 
 eraseFrom :: Eq a => a -> [a] -> [a]
